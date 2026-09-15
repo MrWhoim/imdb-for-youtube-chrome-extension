@@ -1,0 +1,108 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <title>TrueRate</title>
+  <link rel="stylesheet" href="popup.css" />
+</head>
+<body>
+  <div class="app">
+
+    <div id="state-loading" class="state">
+      <div class="spinner"></div>
+      <p>Reading video data…</p>
+    </div>
+
+    <div id="state-not-youtube" class="state hidden">
+      <p class="empty-title" id="not-youtube-title">Not a YouTube video</p>
+      <p class="empty-body" id="not-youtube-body">Open a YouTube watch page to see its TrueRate score.</p>
+    </div>
+
+    <div id="state-error" class="state hidden">
+      <p class="empty-title">Couldn't compute a score</p>
+      <p class="empty-body" id="error-detail">Something went wrong.</p>
+      <button id="retry-btn" class="btn">↻ Reload &amp; analyze</button>
+    </div>
+
+    <div id="state-report" class="state hidden">
+
+      <header class="hero">
+        <div class="hero-score">
+          <span class="star">★</span>
+          <span id="final-score" class="score">–</span>
+          <span class="outof">/10</span>
+        </div>
+        <span id="confidence-badge" class="badge">–</span>
+      </header>
+
+      <p id="video-title" class="video-title">–</p>
+      <p id="channel-line" class="channel-line">–</p>
+
+      <div class="bars">
+        <div class="bar-row">
+          <span class="bar-label">Quality</span>
+          <div class="bar-track"><div id="bar-quality" class="bar-fill bar-fill--quality"></div></div>
+          <span id="val-quality" class="bar-val">–</span>
+        </div>
+        <div class="bar-row">
+          <span class="bar-label">Engagement</span>
+          <div class="bar-track"><div id="bar-engagement" class="bar-fill bar-fill--engagement"></div></div>
+          <span id="val-engagement" class="bar-val">–</span>
+        </div>
+        <div class="bar-row">
+          <span class="bar-label">Reach</span>
+          <div class="bar-track"><div id="bar-reach" class="bar-fill bar-fill--reach"></div></div>
+          <span id="val-reach" class="bar-val">–</span>
+        </div>
+      </div>
+
+      <div class="stat-grid">
+        <div class="stat"><span class="stat-label">Likes</span><span id="stat-likes" class="stat-val">–</span></div>
+        <div class="stat"><span class="stat-label">Dislikes</span><span id="stat-dislikes" class="stat-val">–</span></div>
+        <div class="stat"><span class="stat-label">Views</span><span id="stat-views" class="stat-val">–</span></div>
+        <div class="stat"><span class="stat-label">Comments</span><span id="stat-comments" class="stat-val">–</span></div>
+        <div class="stat"><span class="stat-label">Like %</span><span id="stat-likepct" class="stat-val">–</span></div>
+        <div class="stat"><span class="stat-label">Reach vs. subs</span><span id="stat-reachpct" class="stat-val">–</span></div>
+      </div>
+
+      <details id="weights-panel" class="weights">
+        <summary>Adjust weights</summary>
+        <div class="weight-row">
+          <label for="w-quality">Quality</label>
+          <input type="range" id="w-quality" min="0" max="100" step="5" />
+          <span id="w-quality-val" class="weight-val">50%</span>
+        </div>
+        <div class="weight-row">
+          <label for="w-engagement">Engagement</label>
+          <input type="range" id="w-engagement" min="0" max="100" step="5" />
+          <span id="w-engagement-val" class="weight-val">30%</span>
+        </div>
+        <div class="weight-row">
+          <label for="w-reach">Reach</label>
+          <input type="range" id="w-reach" min="0" max="100" step="5" />
+          <span id="w-reach-val" class="weight-val">20%</span>
+        </div>
+        <button id="reset-weights-btn" class="btn btn--ghost">Reset to defaults</button>
+      </details>
+
+      <button id="reload-btn" class="btn btn--ghost">↻ Reload &amp; analyze</button>
+
+      <p class="attribution">
+        Vote data from <a href="https://returnyoutubedislike.com" target="_blank" rel="noopener">Return YouTube Dislike</a>.
+        Not affiliated with YouTube or Google.
+      </p>
+    </div>
+
+    <div class="global-settings">
+      <label class="toggle-row">
+        <input type="checkbox" id="feed-toggle" />
+        <span>Show ratings on thumbnails (Home &amp; Shorts feed)</span>
+      </label>
+    </div>
+
+  </div>
+
+  <script src="rating.js"></script>
+  <script src="popup.js"></script>
+</body>
+</html>

@@ -1,0 +1,201 @@
+:root {
+  --bg: #15161a;
+  --panel: #1c1d22;
+  --line: #2b2c33;
+  --text: #ece9e2;
+  --text-dim: #8d8c92;
+  --gold: #e8b84b;
+  --teal: #4fb8a6;
+  --violet: #8c86e6;
+  --red: #d9695f;
+}
+
+* { box-sizing: border-box; }
+
+body {
+  margin: 0;
+  width: 340px;
+  background: var(--bg);
+  color: var(--text);
+  font-family: -apple-system, "Segoe UI", Roboto, Arial, sans-serif;
+  font-size: 13px;
+}
+
+.app { padding: 16px; }
+
+.hidden { display: none !important; }
+
+/* ---- Loading / empty / error states ---- */
+.state { text-align: center; padding: 24px 8px; }
+.spinner {
+  width: 22px; height: 22px; margin: 0 auto 12px;
+  border: 2px solid var(--line);
+  border-top-color: var(--gold);
+  border-radius: 50%;
+  animation: spin 0.8s linear infinite;
+}
+@keyframes spin { to { transform: rotate(360deg); } }
+.empty-title { font-weight: 600; margin: 4px 0; }
+.empty-body { color: var(--text-dim); margin: 0 0 14px; line-height: 1.5; }
+
+/* ---- Hero ---- */
+.hero {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  margin-bottom: 4px;
+}
+.hero-score { display: flex; align-items: baseline; gap: 5px; }
+.star { color: var(--gold); font-size: 20px; line-height: 1; }
+.score {
+  font-family: ui-monospace, "SF Mono", Menlo, Consolas, monospace;
+  font-size: 30px;
+  font-weight: 700;
+  letter-spacing: -0.02em;
+  color: var(--text);
+}
+.outof { color: var(--text-dim); font-size: 13px; }
+
+.badge {
+  font-size: 11px;
+  padding: 3px 8px;
+  border-radius: 20px;
+  border: 1px solid var(--line);
+  color: var(--text-dim);
+  white-space: nowrap;
+}
+
+.video-title {
+  margin: 8px 0 2px;
+  font-weight: 600;
+  line-height: 1.35;
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+}
+.channel-line {
+  margin: 0 0 14px;
+  color: var(--text-dim);
+}
+
+/* ---- Sub-score bars ---- */
+.bars { margin-bottom: 14px; }
+.bar-row {
+  display: grid;
+  grid-template-columns: 76px 1fr 34px;
+  align-items: center;
+  gap: 8px;
+  margin-bottom: 6px;
+}
+.bar-label { color: var(--text-dim); }
+.bar-track {
+  height: 6px;
+  background: var(--panel);
+  border: 1px solid var(--line);
+  border-radius: 4px;
+  overflow: hidden;
+}
+.bar-fill { height: 100%; width: 0%; transition: width 0.35s ease; }
+.bar-fill--quality { background: var(--gold); }
+.bar-fill--engagement { background: var(--teal); }
+.bar-fill--reach { background: var(--violet); }
+.bar-val {
+  font-family: ui-monospace, "SF Mono", Menlo, Consolas, monospace;
+  text-align: right;
+}
+
+/* ---- Stat grid ---- */
+.stat-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 8px;
+  background: var(--panel);
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  padding: 10px 12px;
+  margin-bottom: 12px;
+}
+.stat { display: flex; flex-direction: column; gap: 1px; }
+.stat-label { color: var(--text-dim); font-size: 11px; }
+.stat-val {
+  font-family: ui-monospace, "SF Mono", Menlo, Consolas, monospace;
+  font-size: 13px;
+}
+
+/* ---- Weights panel ---- */
+.weights {
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  padding: 8px 12px;
+  margin-bottom: 10px;
+}
+.weights summary {
+  cursor: pointer;
+  color: var(--text-dim);
+  font-weight: 600;
+  padding: 2px 0;
+}
+.weight-row {
+  display: grid;
+  grid-template-columns: 74px 1fr 34px;
+  align-items: center;
+  gap: 8px;
+  margin-top: 8px;
+}
+.weight-row label { color: var(--text-dim); }
+.weight-val {
+  font-family: ui-monospace, "SF Mono", Menlo, Consolas, monospace;
+  text-align: right;
+}
+input[type="range"] {
+  accent-color: var(--gold);
+  width: 100%;
+}
+
+/* ---- Buttons ---- */
+.btn {
+  display: block;
+  width: 100%;
+  padding: 9px 10px;
+  border-radius: 8px;
+  border: 1px solid var(--line);
+  background: var(--gold);
+  color: #1a1a1a;
+  font-weight: 600;
+  cursor: pointer;
+  margin-top: 6px;
+}
+.btn--ghost {
+  background: transparent;
+  color: var(--text);
+}
+.btn:hover { filter: brightness(1.05); }
+
+.global-settings {
+  margin-top: 14px;
+  padding-top: 12px;
+  border-top: 1px solid var(--line);
+}
+.toggle-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  color: var(--text-dim);
+  font-size: 12px;
+  cursor: pointer;
+}
+.toggle-row input[type="checkbox"] {
+  accent-color: var(--gold);
+  width: 14px;
+  height: 14px;
+}
+
+.attribution {
+  margin: 12px 2px 0;
+  color: var(--text-dim);
+  font-size: 10.5px;
+  line-height: 1.5;
+  text-align: center;
+}
+.attribution a { color: var(--text-dim); }

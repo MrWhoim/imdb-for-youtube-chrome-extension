@@ -1,0 +1,73 @@
+.truerate-badge {
+  display: inline-flex;
+  align-items: baseline;
+  gap: 4px;
+  margin: 8px 12px 8px 0;
+  padding: 6px 12px;
+  border-radius: 8px;
+  background: #17171a;
+  border: 1px solid #2c2c31;
+  font-family: -apple-system, "Segoe UI", Roboto, Arial, sans-serif;
+  font-size: 13px;
+  font-weight: 600;
+  color: #e9e6df;
+  vertical-align: middle;
+  white-space: nowrap;
+}
+
+.truerate-badge--error {
+  color: #8b8a86;
+  font-weight: 500;
+}
+
+.truerate-star {
+  color: #e8b84b;
+  font-size: 14px;
+}
+
+.truerate-score {
+  font-family: ui-monospace, "SF Mono", Menlo, Consolas, monospace;
+  font-size: 14px;
+  color: #f2efe8;
+}
+
+.truerate-outof {
+  color: #8b8a86;
+  font-size: 11px;
+}
+
+/* ---- Feed / thumbnail chip (home page, sidebar, Shorts shelves) ---- */
+.truerate-chip {
+  position: absolute;
+  top: 6px;
+  left: 6px;
+  z-index: 2200;
+  display: inline-flex;
+  align-items: baseline;
+  gap: 3px;
+  padding: 2px 6px;
+  border-radius: 6px;
+  background: rgba(15, 15, 17, 0.88);
+  backdrop-filter: blur(2px);
+  font-family: -apple-system, "Segoe UI", Roboto, Arial, sans-serif;
+  font-size: 11.5px;
+  font-weight: 700;
+  color: #f2efe8;
+  pointer-events: none;
+  opacity: 0;
+  transition: opacity 0.25s ease;
+}
+
+.truerate-chip--ready {
+  opacity: 1;
+  pointer-events: auto;
+}
+
+.truerate-chip-star {
+  color: #e8b84b;
+  font-size: 11px;
+}
+
+.truerate-chip-val {
+  font-family: ui-monospace, "SF Mono", Menlo, Consolas, monospace;
+}
