@@ -20,6 +20,18 @@
   font-weight: 500;
 }
 
+.truerate-badge--overlay {
+  position: absolute;
+  bottom: 84px;
+  left: 12px;
+  z-index: 2500;
+  margin: 0;
+}
+
+.truerate-badge--shorts-inline {
+  margin: 6px 0;
+}
+
 .truerate-star {
   color: #e8b84b;
   font-size: 14px;

@@ -12,7 +12,7 @@ the channel's own subscriber base.**
 3. Turn on **Developer mode** (top-right toggle).
 4. Click **Load unpacked** and select the unzipped `yt-video-rating` folder.
 5. Open any YouTube video. A small badge appears near the like/dislike
-  buttons, and clicking the extension icon opens the full breakdown.
+   buttons, and clicking the extension icon opens the full breakdown.
 
 ## Ratings on the Home page and Shorts feed
 
@@ -31,28 +31,31 @@ To stay well under Return YouTube Dislike's published rate limit
 (100 requests/minute), requests are queued and cached for 30 minutes in the
 extension's background worker, shared across every open tab.
 
-## The algorithm
+## The algorithm (v2)
 
 ```
-FinalScore = 0.5 × Quality + 0.3 × Engagement + 0.2 × Reach      (0–10 scale)
+FinalScore = 0.40 × Net Like Rate
+           + 0.20 × Reach
+           + 0.10 × Vote Confidence
+           + 0.10 × Engagement
+           + 0.20 × Maturity                              (0–10 scale)
 ```
 
 | Component | What it measures | How |
-| --- | --- | --- |
-| **Quality (50%)** | Is the like ratio *trustworthy*, not just high? | Wilson 95% confidence lower bound on `likes/(likes+dislikes)` — the same statistical idea behind Reddit's comment ranking and IMDb's weighted rating. Few votes → pulled toward a conservative estimate. Many votes → converges to the raw ratio. |
-| **Engagement (30%)** | Did viewers actually react, or just scroll past? | `(likes + dislikes + comments) / views`, mapped to 0–10 against rough real-world benchmarks. Low engagement on a high-view video is a common sign of bot/purchased views. |
-| **Reach (20%)** | Is this big *for this channel*, or just big? | `views / subscribers`, log-scaled to 0–10. Normalizes popularity so a 33M-subscriber channel and a 500K-subscriber channel aren't judged on raw view count alone. |
+|---|---|---|
+| **Net Like Rate (40%)** | What fraction of the *whole audience* left a net-positive reaction | `(likes − dislikes) / views`. The primary signal — distinguishes "a few people voted, mostly positively" from "a large share of viewers felt strongly enough to react," which neither Vote Confidence nor Engagement can do alone. |
+| **Reach (20%)** | Is this big *for this channel*? | `views / subscribers`, log-scaled. **Excluded entirely for Shorts** — they're pushed to a much broader non-subscriber audience by design, so even a real subscriber count would make an ordinary Short look artificially viral against a scale built for regular videos. |
+| **Vote Confidence (10%)** | Is the like:dislike split statistically trustworthy? | Wilson 95% confidence lower bound (unchanged method), but recalibrated: on YouTube, ~90%+ like ratios are the *norm* for ordinary content — largely driven by a channel's existing loyal fanbase voting reflexively — so 90% now maps to "average," not "excellent." |
+| **Engagement (10%)** | Did viewers actively react? | `(likes + dislikes + comments) / views`. Content flagged as passively consumed / rewatched-without-revoting (official music uploads, detected via standard upload boilerplate) uses a separately calibrated, more lenient curve, since a song replayed fifty times only ever contributes one vote. |
+| **Maturity (20%)** | Has this video had time to prove itself? | A curve over days-since-publish, reaching "settled" around a month old. A brand-new video's numbers can be temporarily inflated by YouTube's own promotional push to a sample audience, or just not yet reflect its natural audience — the same idea as Vote Confidence's small-sample handling, applied to *time* instead of *vote count*. |
 
-If a channel hides its subscriber count, Reach is dropped and its weight is
-redistributed proportionally across Quality and Engagement — it does **not**
-silently count as a zero.
+**Known tradeoff:** an already-exceptional video that's only a few days old will still score lower than it will once it's proven itself over ~a month, even if nothing else about it changes — that's the direct, intended effect of weighting Maturity at 20%.
 
-A confidence badge (Low / Moderate / High) is shown next to the score based
-on total vote count, since a 5-vote "100%" and a 300,000-vote "99%" are not
-equally reliable, even though a naive ratio would treat them the same.
+Any component whose input is unavailable (no subscriber count, or no parseable upload date) has its weight redistributed proportionally across the rest, rather than silently counting as zero.
 
-You can rebalance the three weights live in the popup ("Adjust weights") —
-the score recalculates instantly and your preference is saved.
+**Confidence badge:** shown separately from the score, based on total vote count (Low / Moderate / High) — a 5-vote video and a 300,000-vote video at the same percentage aren't equally reliable, even after all of the above.
+
+You can rebalance all five weights live in the popup ("Adjust weights") — the score recalculates instantly and your preference is saved.
 
 ## Where the data comes from
 
@@ -89,7 +92,8 @@ the score recalculates instantly and your preference is saved.
 ```
 manifest.json    Manifest V3 config
 rating.js        Pure scoring engine (Wilson score, engagement/reach curves)
-content.js       Watch-page scraping + full on-page badge
+pagedata.js      Shared page-data extraction, used by both content.js and feed.js
+content.js       Watch/Shorts-player scraping + full on-page badge
 feed.js          Scans Home/sidebar/Shorts thumbnails and badges them lazily
 content.css      Badge + thumbnail-chip styling
 background.js    Rate-limited, cached proxy for the Return YouTube Dislike API

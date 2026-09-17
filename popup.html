@@ -40,7 +40,17 @@
 
       <div class="bars">
         <div class="bar-row">
-          <span class="bar-label">Quality</span>
+          <span class="bar-label">Net like rate</span>
+          <div class="bar-track"><div id="bar-netlike" class="bar-fill bar-fill--netlike"></div></div>
+          <span id="val-netlike" class="bar-val">–</span>
+        </div>
+        <div class="bar-row">
+          <span class="bar-label">Reach</span>
+          <div class="bar-track"><div id="bar-reach" class="bar-fill bar-fill--reach"></div></div>
+          <span id="val-reach" class="bar-val">–</span>
+        </div>
+        <div class="bar-row">
+          <span class="bar-label">Vote confidence</span>
           <div class="bar-track"><div id="bar-quality" class="bar-fill bar-fill--quality"></div></div>
           <span id="val-quality" class="bar-val">–</span>
         </div>
@@ -50,9 +60,9 @@
           <span id="val-engagement" class="bar-val">–</span>
         </div>
         <div class="bar-row">
-          <span class="bar-label">Reach</span>
-          <div class="bar-track"><div id="bar-reach" class="bar-fill bar-fill--reach"></div></div>
-          <span id="val-reach" class="bar-val">–</span>
+          <span class="bar-label">Maturity</span>
+          <div class="bar-track"><div id="bar-time" class="bar-fill bar-fill--time"></div></div>
+          <span id="val-time" class="bar-val">–</span>
         </div>
       </div>
 
@@ -61,26 +71,38 @@
         <div class="stat"><span class="stat-label">Dislikes</span><span id="stat-dislikes" class="stat-val">–</span></div>
         <div class="stat"><span class="stat-label">Views</span><span id="stat-views" class="stat-val">–</span></div>
         <div class="stat"><span class="stat-label">Comments</span><span id="stat-comments" class="stat-val">–</span></div>
-        <div class="stat"><span class="stat-label">Like %</span><span id="stat-likepct" class="stat-val">–</span></div>
+        <div class="stat"><span class="stat-label">Net like %</span><span id="stat-netlikepct" class="stat-val">–</span></div>
         <div class="stat"><span class="stat-label">Reach vs. subs</span><span id="stat-reachpct" class="stat-val">–</span></div>
+        <div class="stat"><span class="stat-label">Uploaded</span><span id="stat-age" class="stat-val">–</span></div>
+        <div class="stat"><span class="stat-label">Content type</span><span id="stat-type" class="stat-val">–</span></div>
       </div>
 
       <details id="weights-panel" class="weights">
         <summary>Adjust weights</summary>
         <div class="weight-row">
-          <label for="w-quality">Quality</label>
-          <input type="range" id="w-quality" min="0" max="100" step="5" />
-          <span id="w-quality-val" class="weight-val">50%</span>
-        </div>
-        <div class="weight-row">
-          <label for="w-engagement">Engagement</label>
-          <input type="range" id="w-engagement" min="0" max="100" step="5" />
-          <span id="w-engagement-val" class="weight-val">30%</span>
+          <label for="w-netlike">Net like rate</label>
+          <input type="range" id="w-netlike" min="0" max="100" step="5" />
+          <span id="w-netlike-val" class="weight-val">40%</span>
         </div>
         <div class="weight-row">
           <label for="w-reach">Reach</label>
           <input type="range" id="w-reach" min="0" max="100" step="5" />
           <span id="w-reach-val" class="weight-val">20%</span>
+        </div>
+        <div class="weight-row">
+          <label for="w-quality">Vote confidence</label>
+          <input type="range" id="w-quality" min="0" max="100" step="5" />
+          <span id="w-quality-val" class="weight-val">10%</span>
+        </div>
+        <div class="weight-row">
+          <label for="w-engagement">Engagement</label>
+          <input type="range" id="w-engagement" min="0" max="100" step="5" />
+          <span id="w-engagement-val" class="weight-val">10%</span>
+        </div>
+        <div class="weight-row">
+          <label for="w-time">Maturity</label>
+          <input type="range" id="w-time" min="0" max="100" step="5" />
+          <span id="w-time-val" class="weight-val">20%</span>
         </div>
         <button id="reset-weights-btn" class="btn btn--ghost">Reset to defaults</button>
       </details>

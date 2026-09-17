@@ -14,7 +14,7 @@
 
 body {
   margin: 0;
-  width: 340px;
+  width: 360px;
   background: var(--bg);
   color: var(--text);
   font-family: -apple-system, "Segoe UI", Roboto, Arial, sans-serif;
@@ -83,7 +83,7 @@ body {
 .bars { margin-bottom: 14px; }
 .bar-row {
   display: grid;
-  grid-template-columns: 76px 1fr 34px;
+  grid-template-columns: 96px 1fr 34px;
   align-items: center;
   gap: 8px;
   margin-bottom: 6px;
@@ -100,6 +100,8 @@ body {
 .bar-fill--quality { background: var(--gold); }
 .bar-fill--engagement { background: var(--teal); }
 .bar-fill--reach { background: var(--violet); }
+.bar-fill--netlike { background: #e88a4b; }
+.bar-fill--time { background: #6fae5c; }
 .bar-val {
   font-family: ui-monospace, "SF Mono", Menlo, Consolas, monospace;
   text-align: right;
@@ -138,7 +140,7 @@ body {
 }
 .weight-row {
   display: grid;
-  grid-template-columns: 74px 1fr 34px;
+  grid-template-columns: 96px 1fr 34px;
   align-items: center;
   gap: 8px;
   margin-top: 8px;

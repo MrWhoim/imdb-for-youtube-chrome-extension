@@ -2,7 +2,7 @@
   "manifest_version": 3,
   "name": "TrueRate for YouTube",
   "short_name": "TrueRate",
-  "version": "1.0.0",
+  "version": "2.0.0",
   "description": "A fairer, IMDb-style rating for YouTube videos — weighs like/dislike confidence, real engagement, and reach vs. the channel's subscriber base.",
   "icons": {
     "16": "icons/icon16.png",
@@ -29,7 +29,7 @@
   "content_scripts": [
     {
       "matches": ["*://www.youtube.com/*", "*://m.youtube.com/*"],
-      "js": ["rating.js", "content.js", "feed.js"],
+      "js": ["rating.js", "pagedata.js", "content.js", "feed.js"],
       "css": ["content.css"],
       "run_at": "document_idle"
     }

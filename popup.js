@@ -12,26 +12,36 @@
     videoTitle: document.getElementById("video-title"),
     channelLine: document.getElementById("channel-line"),
 
+    barNetlike: document.getElementById("bar-netlike"),
     barQuality: document.getElementById("bar-quality"),
     barEngagement: document.getElementById("bar-engagement"),
     barReach: document.getElementById("bar-reach"),
+    barTime: document.getElementById("bar-time"),
+    valNetlike: document.getElementById("val-netlike"),
     valQuality: document.getElementById("val-quality"),
     valEngagement: document.getElementById("val-engagement"),
     valReach: document.getElementById("val-reach"),
+    valTime: document.getElementById("val-time"),
 
     statLikes: document.getElementById("stat-likes"),
     statDislikes: document.getElementById("stat-dislikes"),
     statViews: document.getElementById("stat-views"),
     statComments: document.getElementById("stat-comments"),
-    statLikepct: document.getElementById("stat-likepct"),
+    statNetlikepct: document.getElementById("stat-netlikepct"),
     statReachpct: document.getElementById("stat-reachpct"),
+    statAge: document.getElementById("stat-age"),
+    statType: document.getElementById("stat-type"),
 
+    wNetlike: document.getElementById("w-netlike"),
     wQuality: document.getElementById("w-quality"),
     wEngagement: document.getElementById("w-engagement"),
     wReach: document.getElementById("w-reach"),
+    wTime: document.getElementById("w-time"),
+    wNetlikeVal: document.getElementById("w-netlike-val"),
     wQualityVal: document.getElementById("w-quality-val"),
     wEngagementVal: document.getElementById("w-engagement-val"),
     wReachVal: document.getElementById("w-reach-val"),
+    wTimeVal: document.getElementById("w-time-val"),
     resetWeightsBtn: document.getElementById("reset-weights-btn"),
 
     reloadBtn: document.getElementById("reload-btn"),
@@ -62,24 +72,40 @@
   }
 
   function weightsFromSliders() {
+    const nl = Number(els.wNetlike.value);
+    const r = Number(els.wReach.value);
     const q = Number(els.wQuality.value);
     const e = Number(els.wEngagement.value);
-    const r = Number(els.wReach.value);
-    const sum = q + e + r || 1;
-    return { quality: q / sum, engagement: e / sum, reach: r / sum };
+    const t = Number(els.wTime.value);
+    const sum = nl + r + q + e + t || 1;
+    return { netLikeRate: nl / sum, reach: r / sum, quality: q / sum, engagement: e / sum, time: t / sum };
   }
 
   function setSliderLabels() {
+    els.wNetlikeVal.textContent = Math.round(Number(els.wNetlike.value)) + "%";
     els.wQualityVal.textContent = Math.round(Number(els.wQuality.value)) + "%";
     els.wEngagementVal.textContent = Math.round(Number(els.wEngagement.value)) + "%";
     els.wReachVal.textContent = Math.round(Number(els.wReach.value)) + "%";
+    els.wTimeVal.textContent = Math.round(Number(els.wTime.value)) + "%";
   }
 
   function applyWeightsToSliders(weights) {
+    els.wNetlike.value = Math.round(weights.netLikeRate * 100);
     els.wQuality.value = Math.round(weights.quality * 100);
     els.wEngagement.value = Math.round(weights.engagement * 100);
     els.wReach.value = Math.round(weights.reach * 100);
+    els.wTime.value = Math.round(weights.time * 100);
     setSliderLabels();
+  }
+
+  function setBar(barEl, valEl, score, naLabel) {
+    if (score == null) {
+      barEl.style.width = "0%";
+      valEl.textContent = naLabel || "n/a";
+    } else {
+      barEl.style.width = (score / 10) * 100 + "%";
+      valEl.textContent = score.toFixed(1);
+    }
   }
 
   function renderRating(rating) {
@@ -87,22 +113,25 @@
     els.confidenceBadge.textContent = rating.confidence.label;
     els.confidenceBadge.title = rating.confidence.detail;
 
-    els.barQuality.style.width = (rating.quality / 10) * 100 + "%";
-    els.valQuality.textContent = rating.quality.toFixed(1);
+    setBar(els.barNetlike, els.valNetlike, rating.netLikeRate);
+    setBar(els.barQuality, els.valQuality, rating.quality);
+    setBar(els.barEngagement, els.valEngagement, rating.engagement);
+    setBar(els.barReach, els.valReach, rating.reach, rating.isShort ? "n/a (Short)" : "n/a");
+    setBar(els.barTime, els.valTime, rating.time);
 
-    els.barEngagement.style.width = (rating.engagement / 10) * 100 + "%";
-    els.valEngagement.textContent = rating.engagement.toFixed(1);
-
-    if (rating.reach == null) {
-      els.barReach.style.width = "0%";
-      els.valReach.textContent = "n/a";
-    } else {
-      els.barReach.style.width = (rating.reach / 10) * 100 + "%";
-      els.valReach.textContent = rating.reach.toFixed(1);
-    }
-
-    els.statLikepct.textContent = rating.likePercent == null ? "–" : rating.likePercent.toFixed(2) + "%";
-    els.statReachpct.textContent = rating.reachRatioPercent == null ? "Hidden by channel" : fmtPct(rating.reachRatioPercent);
+    els.statNetlikepct.textContent = rating.netLikeRatePercent == null ? "–" : rating.netLikeRatePercent.toFixed(2) + "%";
+    els.statReachpct.textContent = rating.isShort
+      ? "Excluded (Shorts)"
+      : rating.reachRatioPercent == null
+      ? "Hidden by channel"
+      : fmtPct(rating.reachRatioPercent);
+    els.statAge.textContent =
+      rating.daysSincePublish == null
+        ? "Unknown"
+        : rating.daysSincePublish < 1
+        ? "< 1 day ago"
+        : Math.round(rating.daysSincePublish) + " days ago";
+    els.statType.textContent = rating.isMusic ? "Music (adjusted)" : rating.isShort ? "Short" : "Standard";
   }
 
   function renderReport(report) {
@@ -172,7 +201,7 @@
   async function injectContentScriptFallback(tabId) {
     await chrome.scripting.executeScript({
       target: { tabId },
-      files: ["rating.js", "content.js"],
+      files: ["rating.js", "pagedata.js", "content.js", "feed.js"],
     });
     await chrome.scripting.insertCSS({
       target: { tabId },
@@ -223,7 +252,7 @@
   els.retryBtn.addEventListener("click", loadAndRender);
   els.reloadBtn.addEventListener("click", reloadAndAnalyze);
 
-  [els.wQuality, els.wEngagement, els.wReach].forEach((slider) => {
+  [els.wNetlike, els.wQuality, els.wEngagement, els.wReach, els.wTime].forEach((slider) => {
     slider.addEventListener("input", () => {
       setSliderLabels();
       recomputeWithCurrentWeights();
@@ -239,9 +268,21 @@
     chrome.storage.sync.set({ feedRatingEnabled: els.feedToggle.checked });
   });
 
+  function isCompleteWeights(w) {
+    return (
+      w &&
+      typeof w.netLikeRate === "number" &&
+      typeof w.reach === "number" &&
+      typeof w.quality === "number" &&
+      typeof w.engagement === "number" &&
+      typeof w.time === "number"
+    );
+  }
+
   // ---- init ----
   chrome.storage.sync.get(["trueRateWeights", "feedRatingEnabled"], (result) => {
-    applyWeightsToSliders(result.trueRateWeights || DEFAULT_WEIGHTS);
+    const savedWeights = isCompleteWeights(result.trueRateWeights) ? result.trueRateWeights : DEFAULT_WEIGHTS;
+    applyWeightsToSliders(savedWeights);
     els.feedToggle.checked = result.feedRatingEnabled !== false; // default ON
     loadAndRender();
   });
