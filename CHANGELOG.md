@@ -1,5 +1,9 @@
 # Changelog
 
+## v2.4.0 — Top-4-of-5 scoring, Maturity bug root-caused
+- Long-form videos (not Shorts) now use only their **top 4 of 5** components when all 5 are available — the single lowest-scoring dimension is dropped and its weight redistributed, so one weak signal can't sink an otherwise strong video. Doesn't apply to Shorts (Reach is already excluded there) or when fewer than 5 are available in the first place.
+- Fixed the real cause of Maturity occasionally showing 10 for a brand-new video: two separate bugs — (1) a whole-page date-pattern fallback with no way to tell the video's own upload date apart from a comment's timestamp, a channel's join date, or any other date-shaped text on the page; removed entirely. (2) the live-DOM date search tested each text node individually, so a date split across adjacent nodes (e.g. "6" and "hours ago" as separate nodes) matched nothing and silently fell through to a wrong, older date further down the page. Both confirmed and fixed with test cases reproducing each failure mode.
+
 ## v2.3.0 — Absolute dates, bare channel IDs, blanket search-dropdown fix
 - Fixed Maturity still failing on the watch page: the live-DOM fallback only recognized relative dates ("4h ago"), never absolute ones ("Jul 28, 2022") — confirmed directly from a screenshot showing that exact format going unmatched
 - Date extraction is now pattern-based (matches the *shape* of a date) instead of depending on specific JSON field names, which have proven unstable across redesigns — applied to both feed items and the watch page

@@ -228,15 +228,26 @@
     const reachS = reachScore(views, subscribers, isShort);
     const timeS = timeScore(daysSincePublish);
 
-    // Build the set of available (component -> {score, weight}) pairs,
-    // then normalize whatever weight remains across only what's available.
-    const available = [
+    // Build the set of available (component -> {score, weight}) pairs.
+    let available = [
       { key: "netLikeRate", score: netS, weight: w.netLikeRate },
       { key: "reach", score: reachS, weight: w.reach },
       { key: "quality", score: qualS, weight: w.quality },
       { key: "engagement", score: engS, weight: w.engagement },
       { key: "time", score: timeS, weight: w.time },
     ].filter((c) => c.score != null);
+
+    // For long-form videos (not Shorts), when all 5 components are
+    // available, use only the top 4 by score — a single weak dimension
+    // shouldn't sink an otherwise strong video. Only kicks in when more
+    // than 4 are available; if fewer already are (missing subscriber
+    // count, unknown upload date), nothing further is dropped.
+    let droppedKey = null;
+    if (!isShort && available.length > 4) {
+      available = available.slice().sort((a, b) => a.score - b.score);
+      droppedKey = available[0].key;
+      available = available.slice(1);
+    }
 
     const weightSum = available.reduce((sum, c) => sum + c.weight, 0) || 1;
     const usedWeights = {};
@@ -269,6 +280,7 @@
       totalVotes: likes + dislikes,
       confidence: confidenceLabel(likes + dislikes),
       weightsUsed: usedWeights,
+      droppedComponent: droppedKey,
     };
   }
 

@@ -178,7 +178,8 @@
         `Engagement ${r.engagement == null ? "n/a" : r.engagement.toFixed(1)}${r.isMusic ? " (music-adjusted)" : ""}`,
         `Maturity ${r.time == null ? "n/a" : r.time.toFixed(1)}`,
       ];
-      badge.title = `TrueRate ${r.finalScore.toFixed(2)}/10 — ${parts.join(", ")} (${r.confidence.label.toLowerCase()})`;
+      const droppedNote = r.droppedComponent ? ` [${r.droppedComponent} dropped — top 4 of 5 used]` : "";
+      badge.title = `TrueRate ${r.finalScore.toFixed(2)}/10 — ${parts.join(", ")} (${r.confidence.label.toLowerCase()})${droppedNote}`;
     }
     return badge;
   }

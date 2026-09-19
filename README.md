@@ -51,6 +51,8 @@ FinalScore = 0.40 × Net Like Rate
 
 **Known tradeoff:** an already-exceptional video that's only a few days old will still score lower than it will once it's proven itself over ~a month, even if nothing else about it changes — that's the direct, intended effect of weighting Maturity at 20%.
 
+**Top 4 of 5 (long-form only):** when all five components are available for a regular (non-Short) video, the single lowest-scoring one is dropped and its weight redistributed across the rest — one weak dimension shouldn't sink an otherwise strong video. Doesn't apply to Shorts (Reach is already excluded there) or when fewer than 5 components are available to begin with.
+
 Any component whose input is unavailable (no subscriber count, or no parseable upload date) has its weight redistributed proportionally across the rest, rather than silently counting as zero.
 
 **Confidence badge:** shown separately from the score, based on total vote count (Low / Moderate / High) — a 5-vote video and a 300,000-vote video at the same percentage aren't equally reliable, even after all of the above.

@@ -284,15 +284,15 @@
       }
     } catch (e) {}
 
-    // Whole-page pattern fallback: covers the case where
-    // videoPrimaryInfoRenderer itself is missing/restructured, by matching
-    // the SHAPE of a date (relative or absolute) anywhere on the page
-    // rather than depending on that specific container existing at all.
-    if (!result.publishedText) {
-      try {
-        result.publishedText = findPublishedDateText(data);
-      } catch (e) {}
-    }
+    // Deliberately NOT falling back to a whole-page search here: without
+    // videoPrimaryInfoRenderer to scope it, a date-shaped-string search
+    // across the entire page has no way to distinguish the video's own
+    // upload date from a comment's timestamp, a channel's join date, or
+    // any other date-shaped text elsewhere on the page. Better to leave
+    // Maturity excluded (and its weight redistributed) than to silently
+    // show a confident but wrong number. The live-DOM fallback in
+    // content.js, scoped to the metadata area specifically, is the
+    // intended fallback for this case.
 
     try {
       const ownerContainer = findContainerByKey(data, "videoOwnerRenderer");
@@ -383,12 +383,16 @@
       const root = document.querySelector(sel);
       if (!root) continue;
       try {
-        const walker = document.createTreeWalker(root, NodeFilter.SHOW_TEXT);
-        let node;
-        while ((node = walker.nextNode())) {
-          const text = (node.textContent || "").trim();
-          if (text && regex.test(text)) return text;
-        }
+        // Matched against the whole concatenated text rather than testing
+        // individual text nodes one at a time: if the target text is split
+        // across adjacent nodes (common for interpolated strings), no
+        // single node would ever match, silently letting the search fall
+        // through to whatever unrelated date-shaped text comes next in the
+        // container (a real bug this caused: an occasional wrong match
+        // pulled from further down the page).
+        const text = root.textContent || "";
+        const match = text.match(regex);
+        if (match) return match[0];
       } catch (e) {}
     }
     return null;
