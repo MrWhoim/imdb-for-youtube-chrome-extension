@@ -48,6 +48,43 @@
   // everything else for that video ID is a no-op from then on.
   const badgedVideoIds = new Set();
 
+  // Feed items often don't carry subscriber count in their own data at all
+  // (sidebar recommendations and search results especially). The
+  // channel-page fetch fallback works here too, but capped modestly since
+  // fetching a full page per scrolled video would be too heavy — this is a
+  // "when it's cheap" improvement, not a guarantee.
+  const MAX_CHANNEL_LOOKUPS_THIS_PAGE = 25;
+  let channelLookupsUsed = 0;
+  const channelSubsMemo = new Map(); // channelUrl -> subscribers, avoids re-asking for the same channel
+
+  function fetchChannelSubsFromBackground(channelUrl) {
+    return new Promise((resolve) => {
+      chrome.runtime.sendMessage({ type: "FETCH_CHANNEL_SUBS", channelUrl }, (response) => {
+        if (chrome.runtime.lastError) {
+          resolve({ ok: false, error: chrome.runtime.lastError.message });
+          return;
+        }
+        resolve(response || { ok: false, error: "No response." });
+      });
+    });
+  }
+
+  async function resolveSubscribers(videoId, node) {
+    const direct = PD.extractMetaFromNode(node).subscribers;
+    if (direct != null) return direct;
+
+    const channelUrl = PD.findChannelUrlInNode(node);
+    if (!channelUrl) return null;
+    if (channelSubsMemo.has(channelUrl)) return channelSubsMemo.get(channelUrl);
+    if (channelLookupsUsed >= MAX_CHANNEL_LOOKUPS_THIS_PAGE) return null;
+
+    channelLookupsUsed++;
+    const res = await fetchChannelSubsFromBackground(channelUrl);
+    const subs = res.ok ? res.subscribers : null;
+    channelSubsMemo.set(channelUrl, subs);
+    return subs;
+  }
+
   let pageIndex = new Map();
   function refreshPageIndex() {
     try {
@@ -88,6 +125,53 @@
   // thumbnail the way it used to.
   const CARD_SELECTORS = ["a#thumbnail", 'a[href^="/shorts/"]', 'a[href*="/watch?v="]'];
 
+  // Widening CARD_SELECTORS to catch cards without id="thumbnail" also
+  // reintroduced matches inside chrome/navigation areas that are NOT the
+  // main content grid — search-suggestion previews, the left sidebar guide
+  // menu, the masthead. These are excluded explicitly rather than relying
+  // on the shape check alone, since some of these previews are genuinely
+  // thumbnail-shaped (YouTube designs search suggestions to look like mini
+  // video cards) and would otherwise pass it.
+  const EXCLUDED_AREA_SELECTOR = [
+    "#guide",
+    "ytd-guide-renderer",
+    "tp-yt-app-drawer",
+    "ytd-masthead",
+    "#masthead",
+    "ytd-searchbox",
+    '[role="listbox"]',
+    '[role="option"]',
+    '[class*="suggestion" i]',
+    '[id*="suggestion" i]',
+    "ytd-popup-container",
+    "tp-yt-iron-dropdown",
+  ].join(",");
+
+  function isInExcludedArea(anchor) {
+    try {
+      return !!PD.closestAcrossShadow(anchor, EXCLUDED_AREA_SELECTOR);
+    } catch (e) {
+      return false;
+    }
+  }
+
+  // Search suggestions can include a floating hover-preview thumbnail that
+  // isn't reliably nested inside any of the excluded containers above (it
+  // may render as a separate overlay). Rather than guess its exact DOM
+  // location, scanning is paused entirely while the search box has focus —
+  // the dropdown only exists in that state anyway, so nothing is lost by
+  // waiting until the user moves on.
+  function isSearchBoxActive() {
+    const active = document.activeElement;
+    if (!active) return false;
+    try {
+      if (active.id === "search" || active.getAttribute("name") === "search_query") return true;
+      return !!PD.closestAcrossShadow(active, "ytd-searchbox, #search-form, ytd-masthead-search-renderer");
+    } catch (e) {
+      return false;
+    }
+  }
+
   // No size comparison, no picking a "winner" here — just find every
   // not-yet-seen candidate and hand each one to the observer individually.
   function findUnprocessedAnchors() {
@@ -97,6 +181,10 @@
       PD.queryDeepAll(document, sel).forEach((anchor) => {
         if (anchor.hasAttribute(PROCESSED_ATTR)) return;
         if (seenThisPass.has(anchor)) return;
+        if (isInExcludedArea(anchor)) {
+          anchor.setAttribute(PROCESSED_ATTR, "excluded");
+          return;
+        }
         const info = extractVideoId(anchor.getAttribute("href"));
         if (!info) return;
         seenThisPass.add(anchor);
@@ -174,13 +262,16 @@
     const votes = res.data;
     const node = pageIndex.get(videoId);
     const meta = PD.extractMetaFromNode(node);
+    // No point spending a channel-page fetch on Shorts — Reach is excluded
+    // for them unconditionally regardless of subscriber count.
+    const subscribers = isShortHint ? null : await resolveSubscribers(videoId, node);
 
     const stats = {
       likes: votes.likes,
       dislikes: votes.dislikes,
       comments: meta.comments || 0,
       views: meta.views || votes.viewCount,
-      subscribers: meta.subscribers,
+      subscribers: subscribers,
       isShort: isShortHint,
       daysSincePublish: PD.estimateDaysSincePublish(meta.publishedText),
       isMusic: node ? PD.isMusicLikeContent(node) : false,
@@ -210,6 +301,7 @@
 
   function scan() {
     if (!enabled) return;
+    if (isSearchBoxActive()) return;
     const anchors = findUnprocessedAnchors();
     if (anchors.length === 0) return;
     const obs = getObserver();
@@ -222,4 +314,21 @@
     badgedVideoIds.clear();
     setTimeout(scan, 800);
   });
+
+  // Belt-and-suspenders defense for the search-dropdown badge: rather than
+  // rely solely on excluding specific containers (whose exact structure
+  // keeps proving hard to pin down), this actively hides every existing
+  // badge the instant the search box gains focus, and restores them once
+  // it loses focus. Checked frequently and independently of the main scan
+  // loop so it reacts quickly regardless of what's causing the leak.
+  let badgesCurrentlyHidden = false;
+  function syncBadgeVisibilityWithSearchState() {
+    const active = isSearchBoxActive();
+    if (active === badgesCurrentlyHidden) return;
+    badgesCurrentlyHidden = active;
+    document.querySelectorAll("." + BADGE_CLASS).forEach((el) => {
+      el.style.display = active ? "none" : "";
+    });
+  }
+  setInterval(syncBadgeVisibilityWithSearchState, 250);
 })();

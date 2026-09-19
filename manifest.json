@@ -2,7 +2,7 @@
   "manifest_version": 3,
   "name": "TrueRate for YouTube",
   "short_name": "TrueRate",
-  "version": "2.0.0",
+  "version": "2.3.0",
   "description": "A fairer, IMDb-style rating for YouTube videos — weighs like/dislike confidence, real engagement, and reach vs. the channel's subscriber base.",
   "icons": {
     "16": "icons/icon16.png",

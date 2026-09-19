@@ -141,6 +141,29 @@
     return null;
   }
 
+  // Matches the shape of a published-date string regardless of which JSON
+  // key it's stored under (relative spelled-out, relative abbreviated, or
+  // absolute) — used as a fallback since exact key names for this field
+  // have proven unstable across YouTube's redesigns.
+  const PUBLISHED_DATE_PATTERN =
+    /(\d+\s*(second|minute|hour|day|week|month|year)s?\s+ago)|(\d+\s*(mo|min|s|h|d|w|y)\s+ago)|([A-Z][a-z]{2,8}\s+\d{1,2},\s*\d{4})/i;
+
+  function findPublishedDateText(node) {
+    if (!node) return null;
+    try {
+      const known = findContainerByKey(node, "publishedTimeText") || findContainerByKey(node, "dateText");
+      if (known) {
+        const t = runsToText(known.publishedTimeText || known.dateText);
+        if (t) return t;
+      }
+    } catch (e) {}
+    try {
+      return findFirstMatchingString(node, PUBLISHED_DATE_PATTERN, 0, 25);
+    } catch (e) {
+      return null;
+    }
+  }
+
   // Pulls whatever we can find (title, channel, subscribers, views,
   // comments) out of a single video's JSON node — scoped to just that
   // node's own subtree, not the whole page, so pattern searches stay fast
@@ -196,12 +219,7 @@
       }
     } catch (e) {}
 
-    try {
-      const dateContainer = findContainerByKey(node, "publishedTimeText") || findContainerByKey(node, "dateText");
-      if (dateContainer) {
-        result.publishedText = runsToText(dateContainer.publishedTimeText || dateContainer.dateText);
-      }
-    } catch (e) {}
+    result.publishedText = findPublishedDateText(node);
 
     return result;
   }
@@ -262,9 +280,19 @@
             runsToText(p.viewCount && p.viewCount.videoViewCountRenderer && p.viewCount.videoViewCountRenderer.viewCount)
           );
         } catch (e) {}
-        result.publishedText = runsToText(p.dateText);
+        result.publishedText = runsToText(p.dateText) || findPublishedDateText(p);
       }
     } catch (e) {}
+
+    // Whole-page pattern fallback: covers the case where
+    // videoPrimaryInfoRenderer itself is missing/restructured, by matching
+    // the SHAPE of a date (relative or absolute) anywhere on the page
+    // rather than depending on that specific container existing at all.
+    if (!result.publishedText) {
+      try {
+        result.publishedText = findPublishedDateText(data);
+      } catch (e) {}
+    }
 
     try {
       const ownerContainer = findContainerByKey(data, "videoOwnerRenderer");
@@ -288,18 +316,34 @@
     return result;
   }
 
-  // Converts YouTube's relative ("2 weeks ago", "Streamed 9 days ago") or
-  // absolute ("Nov 10, 2013") date text into an approximate number of days
-  // since publish. Returns null if the text can't be parsed at all.
+  // Converts YouTube's relative ("2 weeks ago", "Streamed 9 days ago",
+  // and the ABBREVIATED forms YouTube uses in feed/sidebar contexts like
+  // "4h ago", "1mo ago", "3d ago", "2w ago", "5y ago") or absolute
+  // ("Nov 10, 2013") date text into an approximate number of days since
+  // publish. Returns null if the text can't be parsed at all.
   function estimateDaysSincePublish(text) {
     if (!text) return null;
-    const s = String(text).toLowerCase();
-    const relMatch = s.match(/(\d+)\s+(second|minute|hour|day|week|month|year)s?\s+ago/);
-    if (relMatch) {
-      const n = parseInt(relMatch[1], 10);
+    const s = String(text).toLowerCase().trim();
+
+    if (/\btoday\b/.test(s)) return 0.3;
+    if (/\byesterday\b/.test(s)) return 1;
+
+    // Spelled-out form: "4 hours ago", "2 weeks ago"
+    let m = s.match(/(\d+)\s+(second|minute|hour|day|week|month|year)s?\s+ago/);
+    if (m) {
       const perDay = { second: 1 / 86400, minute: 1 / 1440, hour: 1 / 24, day: 1, week: 7, month: 30.44, year: 365.25 };
-      return n * (perDay[relMatch[2]] || 1);
+      return parseInt(m[1], 10) * (perDay[m[2]] || 1);
     }
+
+    // Abbreviated form: "4h ago", "1mo ago", "3d ago", "2w ago", "5y ago".
+    // "mo" is checked before the single-letter units so "1mo" isn't
+    // mis-parsed as "1m" + a stray "o".
+    m = s.match(/(\d+)\s*(mo|min|s|h|d|w|y)\b\s*ago/);
+    if (m) {
+      const perDayAbbrev = { s: 1 / 86400, min: 1 / 1440, h: 1 / 24, d: 1, w: 7, mo: 30.44, y: 365.25 };
+      return parseInt(m[1], 10) * (perDayAbbrev[m[2]] || 1);
+    }
+
     const parsed = Date.parse(text);
     if (!isNaN(parsed)) {
       return Math.max(0, (Date.now() - parsed) / 86400000);
@@ -327,6 +371,79 @@
     return false;
   }
 
+  // Reads whatever is ACTUALLY rendered on screen, rather than assuming a
+  // particular JSON shape. YouTube has been migrating parts of its watch
+  // page to a new "content metadata view model" structure that the
+  // classic videoPrimaryInfoRenderer/videoOwnerRenderer JSON parsing below
+  // doesn't recognize at all — this is a fallback that works regardless of
+  // which internal JSON schema is currently in use, since it just reads
+  // text nodes.
+  function findLiveDomText(selectors, regex) {
+    for (const sel of selectors) {
+      const root = document.querySelector(sel);
+      if (!root) continue;
+      try {
+        const walker = document.createTreeWalker(root, NodeFilter.SHOW_TEXT);
+        let node;
+        while ((node = walker.nextNode())) {
+          const text = (node.textContent || "").trim();
+          if (text && regex.test(text)) return text;
+        }
+      } catch (e) {}
+    }
+    return null;
+  }
+
+  // Element.closest() does not cross shadow-DOM boundaries. This does, by
+  // hopping to the shadow root's host element once it runs out of light-DOM
+  // ancestors, so exclusion checks work correctly on anchors found via
+  // queryDeepAll (which does pierce shadow roots).
+  function closestAcrossShadow(el, selector) {
+    let node = el;
+    while (node) {
+      if (node.matches && node.matches(selector)) return node;
+      if (node.parentElement) {
+        node = node.parentElement;
+      } else if (node.getRootNode && typeof ShadowRoot !== "undefined" && node.getRootNode() instanceof ShadowRoot) {
+        node = node.getRootNode().host;
+      } else {
+        break;
+      }
+    }
+    return null;
+  }
+
+  // Finds a channel path (e.g. "/@channelname" or "/channel/UCxxxx") embedded
+  // anywhere within a video's own JSON data — used to know which channel
+  // page to fetch when subscriber count isn't available any other way.
+  function findChannelUrlInNode(node) {
+    if (!node) return null;
+    try {
+      const pathMatch = findFirstMatchingString(node, /^\/(@[\w.-]+|channel\/UC[\w-]{10,})$/i, 0, 25);
+      if (pathMatch) return pathMatch;
+      // YouTube frequently stores just the bare channel ID (no "/channel/"
+      // prefix) in fields like navigationEndpoint.browseEndpoint.browseId —
+      // the previous pattern-only check silently missed this entirely.
+      const bareId = findFirstMatchingString(node, /^UC[\w-]{20,}$/, 0, 25);
+      if (bareId) return "/channel/" + bareId;
+    } catch (e) {}
+    return null;
+  }
+
+  // Live-DOM fallback for the same thing, for when the JSON doesn't have
+  // it either but a clickable channel link is actually rendered.
+  function findChannelUrlLive(root) {
+    const scope = root || document;
+    try {
+      const anchors = scope.querySelectorAll('a[href^="/@"], a[href^="/channel/"]');
+      for (const a of anchors) {
+        const href = a.getAttribute("href");
+        if (href) return href.split("?")[0];
+      }
+    } catch (e) {}
+    return null;
+  }
+
   global.TrueRatePageData = {
     getInitialData,
     parseCompactNumber,
@@ -337,6 +454,10 @@
     extractWatchPageMeta,
     estimateDaysSincePublish,
     isMusicLikeContent,
+    findLiveDomText,
+    closestAcrossShadow,
+    findChannelUrlInNode,
+    findChannelUrlLive,
     runsToText,
     queryDeepAll,
     isPlausibleThumbnailShape,

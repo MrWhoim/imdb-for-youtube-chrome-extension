@@ -24,7 +24,7 @@
   position: absolute;
   bottom: 84px;
   left: 12px;
-  z-index: 2500;
+  z-index: 50;
   margin: 0;
 }
 
@@ -52,8 +52,8 @@
 .truerate-chip {
   position: absolute;
   top: 6px;
-  left: 6px;
-  z-index: 2200;
+  right: 6px;
+  z-index: 5;
   display: inline-flex;
   align-items: baseline;
   gap: 3px;

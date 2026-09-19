@@ -56,6 +56,18 @@
     });
   }
 
+  function fetchChannelSubsFromBackground(channelUrl) {
+    return new Promise((resolve) => {
+      chrome.runtime.sendMessage({ type: "FETCH_CHANNEL_SUBS", channelUrl }, (response) => {
+        if (chrome.runtime.lastError) {
+          resolve({ ok: false, error: chrome.runtime.lastError.message });
+          return;
+        }
+        resolve(response || { ok: false, error: "No response from background worker." });
+      });
+    });
+  }
+
   function mergeMeta(primary, fallback) {
     return {
       title: primary.title || fallback.title,
@@ -77,6 +89,39 @@
       if (meta.subscribers == null || meta.views == null) {
         const node = PD.buildVideoIndex(data).get(videoId);
         if (node) meta = mergeMeta(meta, PD.extractMetaFromNode(node));
+      }
+    }
+
+    // Live-DOM fallback: YouTube has been migrating parts of the watch
+    // page to newer structures (e.g. a "content metadata view model") that
+    // the JSON parsing above doesn't recognize at all. Reading the
+    // rendered text directly works regardless of which internal schema is
+    // currently in use.
+    if (!meta.publishedText) {
+      const domDate = PD.findLiveDomText(
+        ["ytd-watch-metadata", "#below", "#info", "#info-strings"],
+        /(\d+\s*(second|minute|hour|day|week|month|year)s?\s+ago)|(\d+\s*(mo|min|s|h|d|w|y)\s+ago)|(streamed|premiered)|([A-Z][a-z]{2,8}\s+\d{1,2},\s*\d{4})/i
+      );
+      if (domDate) meta = Object.assign({}, meta, { publishedText: domDate });
+    }
+    if (meta.subscribers == null) {
+      const domSubText = PD.findLiveDomText(
+        ["#owner", "ytd-video-owner-renderer", "ytd-watch-metadata"],
+        /subscribers?\b/i
+      );
+      if (domSubText) meta = Object.assign({}, meta, { subscribers: PD.parseCompactNumber(domSubText) });
+    }
+
+    // Last resort: fetch the channel's own page in the background and read
+    // its subscriber count from there. One request per page view here, so
+    // the cost is small even though a full page fetch is heavier than the
+    // votes lookup.
+    if (meta.subscribers == null) {
+      const channelUrl =
+        (data && PD.findChannelUrlInNode(PD.buildVideoIndex(data).get(videoId))) || PD.findChannelUrlLive();
+      if (channelUrl) {
+        const subsRes = await fetchChannelSubsFromBackground(channelUrl);
+        if (subsRes.ok) meta = Object.assign({}, meta, { subscribers: subsRes.subscribers });
       }
     }
 
@@ -179,28 +224,53 @@
     );
   }
 
+  // Broadest reasonable root that should contain BOTH the active video and
+  // its metadata panel (channel name, Subscribe, title) — even if those
+  // turn out to be siblings rather than the panel being nested inside the
+  // video renderer, which is what made the narrower
+  // findActiveShortsContainer() miss the panel entirely on some Shorts.
+  function findShortsSearchScope() {
+    return document.querySelector("ytd-shorts") || document.querySelector("#shorts-container") || findActiveShortsContainer();
+  }
+
+  function isOnScreen(el) {
+    const rect = el.getBoundingClientRect();
+    return rect.width > 0 && rect.height > 0 && rect.bottom > 0 && rect.top < window.innerHeight;
+  }
+
+  // Prefers a VISIBLE match — needed because the broader search scope can
+  // contain preloaded adjacent Shorts (with their own, currently hidden,
+  // Subscribe buttons) alongside the one actually on screen.
   function findSubscribeButtonWithin(root) {
     const candidates = PD.queryDeepAll(
       root,
       'button, yt-button-shape, tp-yt-paper-button, ytd-subscribe-button-renderer, [role="button"]'
     );
+    let offscreenFallback = null;
     for (const el of candidates) {
       const text = (el.textContent || "").trim().toLowerCase();
       const aria = (el.getAttribute("aria-label") || "").toLowerCase();
-      if (text.indexOf("subscribe") !== -1 || aria.indexOf("subscribe") !== -1) return el;
+      if (text.indexOf("subscribe") !== -1 || aria.indexOf("subscribe") !== -1) {
+        if (isOnScreen(el)) return el;
+        if (!offscreenFallback) offscreenFallback = el;
+      }
     }
-    return null;
+    return offscreenFallback;
   }
 
   function findChannelLinkWithin(root) {
     const anchors = PD.queryDeepAll(root, 'a[href^="/@"], a[href^="/channel/"]');
+    let onscreenSmall = null;
     let fallback = null;
     for (const a of anchors) {
       const rect = a.getBoundingClientRect();
-      if (rect.width > 0 && rect.height > 0 && rect.height < 60) return a;
+      if (rect.width > 0 && rect.height > 0 && rect.height < 60 && isOnScreen(a)) {
+        onscreenSmall = a;
+        break;
+      }
       if (!fallback) fallback = a;
     }
-    return fallback;
+    return onscreenSmall || fallback;
   }
 
   const META_PANEL_TEXT_THRESHOLD = 35; // "Subscribe" + a short channel name stays well under this
@@ -217,14 +287,14 @@
   }
 
   function injectShortsBadge(report) {
-    const container = findActiveShortsContainer();
-    if (!container) return { inserted: false, tier: null };
+    const searchScope = findShortsSearchScope();
+    if (!searchScope) return { inserted: false, tier: null };
 
     const badge = buildBadgeElement(report);
-    const refEl = findSubscribeButtonWithin(container) || findChannelLinkWithin(container);
+    const refEl = findSubscribeButtonWithin(searchScope) || findChannelLinkWithin(searchScope);
 
     if (refEl) {
-      const panel = findShortsMetaPanel(refEl, container);
+      const panel = findShortsMetaPanel(refEl, searchScope);
       if (panel && panel.parentElement) {
         badge.classList.add("truerate-badge--shorts-inline");
         panel.insertBefore(badge, panel.firstChild);
@@ -232,8 +302,9 @@
       }
     }
 
-    // Fallback: couldn't confidently find the metadata panel — an overlay
-    // low on the frame is still better than no badge at all.
+    // Fallback: couldn't confidently find the metadata panel at all.
+    const container = findActiveShortsContainer();
+    if (!container) return { inserted: false, tier: null };
     const computedPosition = getComputedStyle(container).position;
     if (computedPosition === "static") container.style.position = "relative";
     badge.classList.add("truerate-badge--overlay");
